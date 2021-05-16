@@ -2,6 +2,7 @@ package com.android.scanner
 
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
@@ -15,7 +16,7 @@ import kotlinx.android.synthetic.main.activity_camera.*
 import java.io.File
 import java.util.concurrent.Executor
 
-class CameraActivity : AppCompatActivity(), Executor {
+class CameraActivity : AppCompatActivity(), Executor, ImageCapture.OnImageSavedCallback {
 
     private lateinit var cameraProviderFuture : ListenableFuture<ProcessCameraProvider>
     private lateinit var imageCapture : ImageCapture
@@ -35,35 +36,34 @@ class CameraActivity : AppCompatActivity(), Executor {
         var preview : Preview = Preview.Builder()
             .build()
 
-        var cameraSelector : CameraSelector = CameraSelector.Builder()
+        val cameraSelector : CameraSelector = CameraSelector.Builder()
             .requireLensFacing(CameraSelector.LENS_FACING_BACK)
             .build()
 
         preview.setSurfaceProvider(previewView.getSurfaceProvider())
         imageCapture = ImageCapture.Builder()
+            .setTargetRotation(previewView.display.rotation)
             .build()
 
         var camera = cameraProvider.bindToLifecycle(this as LifecycleOwner, cameraSelector, imageCapture, preview)
     }
 
     fun onCapture(view: View) {
-        // Capture image and save it in file/image directory and provide the URI in intent result
-        val directory = File(filesDir, "images")
-        val file = File("$directory/1.jpg")
+        val file = File(filesDir, "CaptureImage.jpg")
         val outputFileOptions = ImageCapture.OutputFileOptions.Builder(file).build()
-        imageCapture.takePicture(outputFileOptions, this,
-            object : ImageCapture.OnImageSavedCallback {
-                override fun onError(error: ImageCaptureException) {
-                    // insert your code here.
-                }
-                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                    // insert your code here.
-                }
-            })
+        imageCapture.takePicture(outputFileOptions, ContextCompat.getMainExecutor(this), this)
     }
 
     override fun execute(command: Runnable) {
         command.run()
+    }
+
+    override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+        Toast.makeText(this@CameraActivity, "Image Saved Successfully", Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onError(exception: ImageCaptureException) {
+        Toast.makeText(this@CameraActivity, "Error in Saving", Toast.LENGTH_SHORT).show()
     }
 
 }
