@@ -53,8 +53,7 @@ class CameraActivity : AppCompatActivity(), Executor {
         val outputFileOptions = ImageCapture.OutputFileOptions.Builder(file).build()
         imageCapture.takePicture(outputFileOptions, this,
             object : ImageCapture.OnImageSavedCallback {
-                override fun onError(error: ImageCaptureException)
-                {
+                override fun onError(error: ImageCaptureException) {
                     // insert your code here.
                 }
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
