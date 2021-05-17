@@ -15,7 +15,7 @@ class Tesseract private constructor(context : Context){
     private var mTess : TessBaseAPI = TessBaseAPI()
 
     init {
-        val path = context.externalCacheDir.toString() + "/tesseract/"
+        val path = context.filesDir.toString() + "/tesseract/"
         val language = "eng"
         val dir = File(path + "tessdata/")
         if (!dir.exists()) dir.mkdirs()
@@ -24,7 +24,10 @@ class Tesseract private constructor(context : Context){
 
     companion object : SingletonHolder<Tesseract, Context>(::Tesseract)
 
-    fun getOCRResult(bitmap: Bitmap): String? {
+    fun getOCRResult(bitmap: Bitmap?): String? {
+        if (bitmap == null) {
+            return null
+        }
         mTess.setImage(bitmap)
         return mTess.utF8Text
     }
