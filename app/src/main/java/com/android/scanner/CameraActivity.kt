@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.LifecycleOwner
 import com.android.scanner.ocr.Tesseract
 import com.google.common.util.concurrent.ListenableFuture
@@ -48,13 +49,14 @@ class CameraActivity : AppCompatActivity(), Executor, ImageCapture.OnImageSavedC
             .build()
 
         preview.setSurfaceProvider(previewView.getSurfaceProvider())
+        Log.d("PreviewView", "bindPreview: ${previewView.display.rotation}")
         imageCapture = ImageCapture.Builder()
             .setTargetRotation(previewView.display.rotation)
             .build()
 
         val imageAnalysis = ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-            .setTargetRotation(Surface.ROTATION_0)
+            .setTargetRotation(Surface.ROTATION_270)
             .build()
 
         imageAnalysis.setAnalyzer(this, this)
@@ -65,7 +67,7 @@ class CameraActivity : AppCompatActivity(), Executor, ImageCapture.OnImageSavedC
     fun onCapture(view: View) {
         val file = File(filesDir, "CaptureImage.jpg")
         val outputFileOptions = ImageCapture.OutputFileOptions.Builder(file).build()
-        imageCapture.takePicture(outputFileOptions, ContextCompat.getMainExecutor(this), this)
+        imageCapture.takePicture(outputFileOptions, this, this)
     }
 
     override fun execute(command: Runnable) {
@@ -73,14 +75,9 @@ class CameraActivity : AppCompatActivity(), Executor, ImageCapture.OnImageSavedC
     }
 
     override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-        Toast.makeText(this@CameraActivity, "Image Saved Successfully", Toast.LENGTH_SHORT).show()
-        val uri = outputFileResults.savedUri ?: return
-        val bitmap = if (Build.VERSION.SDK_INT < 28) {
-               MediaStore.Images.Media.getBitmap(this.contentResolver, uri)
-            } else {
-                val source = ImageDecoder.createSource(this.contentResolver, uri)
-                ImageDecoder.decodeBitmap(source)
-            }
+//        Toast.makeText(this@CameraActivity, "Image Saved Successfully", Toast.LENGTH_SHORT).show()
+        val file = File(filesDir, "CaptureImage.jpg")
+        val bitmap = BitmapFactory.decodeFile(file.path);
         val text = Tesseract.getInstance(this@CameraActivity).getOCRResult(bitmap)
         if (text != null) {
             Log.d("OCRText", text)
@@ -93,9 +90,10 @@ class CameraActivity : AppCompatActivity(), Executor, ImageCapture.OnImageSavedC
 
     override fun analyze(image: ImageProxy) {
 //        toBitmap(image.image?)
-        var bitmap = image.image?.let {
-            toBitmap(it)
-        }
+//        var bitmap = image.image?.let {
+//            toBitmap(it)
+//        }
+        val bitmap = image.toBitmap2();
         bitmap?.let { runInternal(it) }
         val text = Tesseract.getInstance(this@CameraActivity).getOCRResult(bitmap)
         if (text != null) {
@@ -169,6 +167,26 @@ class CameraActivity : AppCompatActivity(), Executor, ImageCapture.OnImageSavedC
         val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
         val out = ByteArrayOutputStream()
         yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 100, out)
+        val imageBytes = out.toByteArray()
+        val workingBitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+        return workingBitmap.copy(Bitmap.Config.ARGB_8888, true)
+    }
+
+    fun ImageProxy.toBitmap2(): Bitmap {
+        val yBuffer = planes[0].buffer // Y
+        val vuBuffer = planes[2].buffer // VU
+
+        val ySize = yBuffer.remaining()
+        val vuSize = vuBuffer.remaining()
+
+        val nv21 = ByteArray(ySize + vuSize)
+
+        yBuffer.get(nv21, 0, ySize)
+        vuBuffer.get(nv21, ySize, vuSize)
+
+        val yuvImage = YuvImage(nv21, ImageFormat.NV21, this.width, this.height, null)
+        val out = ByteArrayOutputStream()
+        yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 50, out)
         val imageBytes = out.toByteArray()
         val workingBitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
         return workingBitmap.copy(Bitmap.Config.ARGB_8888, true)
