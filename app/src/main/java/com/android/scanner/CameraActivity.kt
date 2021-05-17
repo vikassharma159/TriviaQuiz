@@ -1,6 +1,10 @@
 package com.android.scanner
 
+import android.graphics.ImageDecoder
+import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -11,6 +15,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import com.android.scanner.ocr.Tesseract
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.android.synthetic.main.activity_camera.*
 import java.io.File
@@ -60,6 +65,17 @@ class CameraActivity : AppCompatActivity(), Executor, ImageCapture.OnImageSavedC
 
     override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
         Toast.makeText(this@CameraActivity, "Image Saved Successfully", Toast.LENGTH_SHORT).show()
+        val uri = outputFileResults.savedUri ?: return
+        val bitmap = if(Build.VERSION.SDK_INT < 28) {
+               MediaStore.Images.Media.getBitmap(this.contentResolver, uri)
+            } else {
+                val source = ImageDecoder.createSource(this.contentResolver, uri)
+                ImageDecoder.decodeBitmap(source)
+            }
+        val text = Tesseract.getInstance(this@CameraActivity).getOCRResult(bitmap)
+        if (text != null) {
+            Log.d("OCR Text", text)
+        }
     }
 
     override fun onError(exception: ImageCaptureException) {
