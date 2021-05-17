@@ -69,9 +69,11 @@ class Tesseract private constructor(context : Context){
             return null
         }
         mTess.setImage(bitmap)
-        val text = mTess.utF8Text
+        return mTess.utF8Text
+    }
+
+    fun onDestroy() {
         mTess.end()
-        return text
     }
 
 }
